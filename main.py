@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, websockets
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
+from fastapi.websockets import WebSocket
 
 app = FastAPI()
 
@@ -29,3 +30,9 @@ def read_root(request: Request):
             context={}
     )
 
+@app.websocket("/ws")
+async def signaling_server(websocket :  WebSocket):
+    await websocket.accept()
+
+    while True:
+        pass

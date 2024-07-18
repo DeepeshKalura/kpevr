@@ -16,6 +16,12 @@
     .catch(function(error) {
         console.log("Error to accessing the media Device");
     });
+    
+    const configuration = { 'iceServers' : [{'urls':'stun:stun.1.google.com:19320'}]};
+    var localPeerConnection = new RTCPeerConnection(configuration);
+
+    # implement rtc_peer_connection.:
+
 
 </script>
 
@@ -39,6 +45,8 @@
 
 
         </div>
+
+        <Button id="onclick()"> PeerConnectionButton </Button>
 
 
 
