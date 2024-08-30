@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Web RTC Tutorial </title>
+</head>
+
+
+<script>
+    var isLoaded = false;
+
+    // making web_rtc 
+    var peer = new RTCPeerConnection(
+        {
+            iceServers: [{
+                urls:
+                    'stun:stun.l.google.com:19302',
+            }]
+
+        }
+    )
+
+    peer.addEventListener('icecandidate', event => {
+        if (event.candidate) {
+            websocket.send(JSON.stringify({
+                'new-ice-candidate': event.candidate
+            }));
+        }
+    });
+
+    async function gettingUserMedia() {
+
+
+
+        var constraints = {
+            video: {
+                width: {ideal: 1280},
+                height: {ideal: 720}
+            },
+            audio: true
+        }
+        try {
+            var stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            const videoComponent = document.getElementById("localAudioVideo");
+            videoComponent.srcObject = stream;
+
+            // added track to web_rtc 
+            stream.getTracks().forEach(track => {
+                peer.addTrack(track, stream);
+            });
+
+
+        } catch (err) {
+            console.log(`error is ${err}`);
+        }
+
+    }
+
+    gettingUserMedia();
+
+
+
+
+
+    peer.addEventListener('connectionstatechange', () => {
+
+        if (peer.iceConnectionState === "failed") {
+            console.log("fuck you");
+        }
+
+        if (peer.connectionState === "connected") {
+            console.log("does not matter");
+        }
+
+
+
+
+
+
+    });
+
+    function getCookie(cname) {
+        let name = cname + "=";
+        let ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+            }
+            if (c.indexOf(name) == 0) {
+                return c.substring(name.length, c.length);
+            }
+        }
+        return "";
+    }
+
+    var user_id = getCookie("user_id");
+    var websocket = new WebSocket(`ws://127.0.0.1:8000/ws`);
+    async function callPeer() {
+        console.log("called the peer");
+        // creating a webscoket client in which we will 
+        const state = websocket.readyState;
+
+        if (state == 1) {
+
+            getOffer();
+        }
+
+        async function getOffer() {
+            if (peer) {
+                console.log(peer.iceConnectionState);
+
+                const offer = await peer.createOffer();
+                await peer.setLocalDescription(offer);
+                console.log(offer);
+                // need to share this information to my another user
+
+                websocket.send(JSON.stringify({
+                    "offer": offer,
+                    "user_id": getCookie("user_id")
+                }));
+
+            }
+        }
+    }
+
+    websocket.onmessage = async function (event) {
+        const data = JSON.parse(event.data);
+        console.log(data);  
+        if (data.offer) {
+            peer.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await peer.createAnswer();
+            await peer.setLocalDescription(answer);
+
+            websocket.send(JSON.stringify({
+                "answer": answer,
+                "user_id": getCookie("user_id")
+            }));
+        }
+        if (data.answer) {
+            const remoteDesc = new RTCSessionDescription(data.answer);
+            await peer.setRemoteDescription(remoteDesc);
+        }
+        if (data["new-ice-candidate"]) {
+            try {
+                console.log("don't you are getting what need to get u")
+                await peer.addIceCandidate(data["new-ice-candidate"])
+            } catch (e) {
+                console.error("Error adding received ice candidate", e);
+            }
+        }
+
+    };
+
+    peer.addEventListener('track', async (event) => {
+                console.log("I even got a track from connected state")
+                var remoteVideo = document.createElement('video');
+                const [remoteStream] = event.streams;
+                remoteVideo.srcObject = remoteStream;
+                document.body.appendChild(remoteVideo)
+            });
+
+</script>
+
+
+<body>
+
+
+    <h1> ROOM ALL PEOPLE WILL BE HERE</h1>
+
+
+    <video id="localAudioVideo" width=1280px height=720px autoplay> Local are not here </video>
+    <Button onclick="callPeer()"> Call </Button>
+    
+
+
+
+</body>
+
+</html>
